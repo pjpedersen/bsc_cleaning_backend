@@ -1,11 +1,11 @@
-import app from './app';
 import mongoose from 'mongoose';
 import config from './config/config';
+import app from './app';
 
 mongoose.connect(config.DB_URI)
-  .then(() => console.log('Pricing connected to DB'))
+  .then(() => console.log('Auth service connected to DB'))
   .catch(err => console.error('DB connection error:', err));
 
 app.listen(config.PORT, () => {
-  console.log(`Pricing service running on port ${config.PORT}`);
+  console.log(`Authentication service running on port ${config.PORT}`);
 });

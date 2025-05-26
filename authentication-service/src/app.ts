@@ -1,10 +1,11 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import config from './config/config';
-import pricingRoutes from './api/routes/pricing.routes';
+import authRoutes from './api/routes/auth.routes';
+
 
 const app = express();
 app.use(express.json());
-app.use('/api/pricing', pricingRoutes);
+app.use('/api/auth', authRoutes);
 
 export default app;
