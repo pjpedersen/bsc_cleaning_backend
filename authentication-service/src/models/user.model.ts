@@ -4,6 +4,9 @@ export interface IUser extends Document {
   email: string;
   password: string;
   createdAt: Date;
+  // add hourly wage rate
+  // add telephone number
+  
 }
 
 const userSchema = new Schema<IUser>({
