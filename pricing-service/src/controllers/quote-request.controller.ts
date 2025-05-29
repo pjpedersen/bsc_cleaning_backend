@@ -110,12 +110,24 @@ export class QuoteRequestController {
       const { id } = req.params;
       const update = req.body;
 
-      // Ensure only valid fields are updated
+      console.log('=== Quote Update Debug ===');
+      console.log('1. Request body:', JSON.stringify(req.body, null, 2));
+      console.log('2. Quote ID:', id);
+
+      // Allow updating all customer-related fields
       const allowedUpdates = [
-        'status',
+        'customerType',
+        'name',
+        'email',
+        'phone',
+        'address',
+        'city',
+        'zip',
         'note',
+        'service',
         'estimatedPrice',
-        'parameters'
+        'parameters',
+        'status'
       ];
 
       const sanitizedUpdate = Object.keys(update).reduce((acc, key) => {
@@ -124,6 +136,12 @@ export class QuoteRequestController {
         }
         return acc;
       }, {} as Record<string, any>);
+
+      console.log('3. Sanitized update:', JSON.stringify(sanitizedUpdate, null, 2));
+
+      // Get the quote before update
+      const beforeQuote = await Quote.findById(id).lean();
+      console.log('4. Quote before update:', JSON.stringify(beforeQuote, null, 2));
 
       const quote = await Quote.findByIdAndUpdate(
         id,
@@ -134,6 +152,8 @@ export class QuoteRequestController {
       if (!quote) {
         return res.status(404).json({ error: 'Quote request not found' });
       }
+
+      console.log('5. Quote after update:', JSON.stringify(quote, null, 2));
 
       // Transform the response to match frontend expectations
       const transformedQuote = {
@@ -152,6 +172,9 @@ export class QuoteRequestController {
         status: quote.status,
         createdAt: quote.createdAt,
       };
+
+      console.log('6. Transformed response:', JSON.stringify(transformedQuote, null, 2));
+      console.log('=== End Debug ===');
 
       res.json(transformedQuote);
     } catch (error: any) {
