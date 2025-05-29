@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { PricingController } from '../../controllers/pricing.controller';
+import { PricingController } from '../controllers/pricing.controller';
 
 const router = Router();
 const controller = new PricingController();
 
+// Price calculation endpoints
 router.post('/calculate', controller.calculateQuote);
-router.get('/quotes/:id', controller.getQuoteById);
 
-export default router;
+export default router; 
