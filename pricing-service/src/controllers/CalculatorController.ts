@@ -1,12 +1,13 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import CalculatorService from '../services/CalculatorService';
 import { CalculatorType, CalculatorSettings } from '../models/Calculator';
+import { AuthRequest } from '../middleware/auth.middleware';
 
 class CalculatorController {
-  async createCalculator(req: Request, res: Response) {
+  async createCalculator(req: AuthRequest, res: Response) {
     try {
       const { type, hourlyWage, settings, name } = req.body;
-      const userId = req.user?.id; // Assuming auth middleware sets user
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({ error: 'User not authenticated' });
@@ -26,7 +27,7 @@ class CalculatorController {
     }
   }
 
-  async getCalculator(req: Request, res: Response) {
+  async getCalculator(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
       const calculator = await CalculatorService.getCalculatorById(id);
@@ -41,7 +42,7 @@ class CalculatorController {
     }
   }
 
-  async getUserCalculators(req: Request, res: Response) {
+  async getUserCalculators(req: AuthRequest, res: Response) {
     try {
       const userId = req.user?.id;
 
@@ -56,7 +57,7 @@ class CalculatorController {
     }
   }
 
-  async updateCalculator(req: Request, res: Response) {
+  async updateCalculator(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -72,7 +73,7 @@ class CalculatorController {
     }
   }
 
-  async deleteCalculator(req: Request, res: Response) {
+  async deleteCalculator(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
       const success = await CalculatorService.deleteCalculator(id);

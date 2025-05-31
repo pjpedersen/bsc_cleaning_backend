@@ -1,17 +1,14 @@
-import { Router } from 'express';
+import express from 'express';
 import CalculatorController from '../controllers/CalculatorController';
-import { authenticateUser } from '../middleware/auth';
+import { authMiddleware } from '../middleware/auth.middleware';
 
-const router = Router();
+const router = express.Router();
 
-// Apply authentication middleware to all calculator routes
-router.use(authenticateUser);
-
-// Calculator routes
-router.post('/create', CalculatorController.createCalculator);
-router.get('/user', CalculatorController.getUserCalculators);
-router.get('/:id', CalculatorController.getCalculator);
-router.put('/:id', CalculatorController.updateCalculator);
-router.delete('/:id', CalculatorController.deleteCalculator);
+// Protected routes - require authentication
+router.post('/create', authMiddleware, CalculatorController.createCalculator);
+router.get('/user', authMiddleware, CalculatorController.getUserCalculators);
+router.get('/:id', authMiddleware, CalculatorController.getCalculator);
+router.put('/:id', authMiddleware, CalculatorController.updateCalculator);
+router.delete('/:id', authMiddleware, CalculatorController.deleteCalculator);
 
 export default router; 
