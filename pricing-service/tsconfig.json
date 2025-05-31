@@ -6,7 +6,12 @@
       "outDir": "./dist",
       "strict": true,
       "moduleResolution": "Node",
-      "esModuleInterop": true
-    }
-  }
+      "esModuleInterop": true,
+      "baseUrl": "./src",
+      "paths": {
+        "*": ["*"]
+      }
+    },
+    "include": ["src/**/*"]
+}
   

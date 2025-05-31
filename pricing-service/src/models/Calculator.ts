@@ -39,7 +39,7 @@ export type CalculatorSettings =
   | NumberOfWindowsSettings;
 
 // Calculator types
-export type CalculatorType = 'window-cleaning' | 'time-based' | 'area-based' | 'number-of-windows';
+export type CalculatorType = 'window-cleaning' | 'time-based' | 'area-based' | 'number-of-windows' | 'hourly' | 'fixed-package' | 'area-based-new';
 
 // Interface for the Calculator document
 export interface ICalculator extends Document {
@@ -64,7 +64,7 @@ const CalculatorSchema = new Schema<ICalculator>(
     type: {
       type: String,
       required: true,
-      enum: ['window-cleaning', 'time-based', 'area-based', 'number-of-windows']
+      enum: ['window-cleaning', 'time-based', 'area-based', 'number-of-windows', 'hourly', 'fixed-package', 'area-based-new']
     },
     name: {
       type: String,
