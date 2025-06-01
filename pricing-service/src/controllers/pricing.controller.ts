@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import { QuoteManager } from '../pricing/quote-manager';
+import { PricingEngine } from '../pricing/pricing-engine';
 
 export class PricingController {
-  private quoteManager = new QuoteManager();
+  private pricingEngine = new PricingEngine();
 
   calculateQuote = async (req: Request, res: Response) => {
     try {
@@ -21,7 +21,7 @@ export class PricingController {
         delete parameters.serviceType;
       }
 
-      const priceDetails = await this.quoteManager.calculateQuote(serviceType, parameters);
+      const priceDetails = await this.pricingEngine.calculate(serviceType, parameters);
       
       res.json({
         estimatedPrice: priceDetails.total,

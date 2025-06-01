@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
 import { Quote } from '../models/quote.model';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { QuoteManager } from '../pricing/quote-manager';
+import { PricingEngine } from '../pricing/pricing-engine';
 
 export class QuoteRequestController {
-  private quoteManager = new QuoteManager();
+  private pricingEngine = new PricingEngine();
 
   submitQuoteRequest = async (req: AuthRequest, res: Response) => {
     try {
