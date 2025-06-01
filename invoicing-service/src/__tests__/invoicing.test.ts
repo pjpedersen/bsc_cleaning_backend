@@ -1,76 +1,142 @@
-import request from 'supertest';
-import mongoose from 'mongoose';
+import { InvoiceService } from '../services/invoice.service';
+import { pricingClient } from '../integrations/pricing.client';
+import { EmailService } from '../services/email.service';
+import { Invoice } from '../models/invoice.model';
 
 jest.mock('../integrations/pricing.client');
-import { pricingClient } from '../integrations/pricing.client';
+jest.mock('../services/email.service');
+jest.mock('../models/invoice.model');
 
-import app from '../app';
-import config from '../config/config';
+describe('InvoiceService (unit)', () => {
+  let service: InvoiceService;
+  const mockQuote = {
+    id: 'QUOTE123',
+    serviceType: 'HOME_CLEANING',
+    parameters: { area: 75, rooms: 3 },
+    estimatedPrice: 150
+  };
+  const mockCustomer = {
+    name: 'Alice',
+    email: 'alice@example.com',
+    address: {
+      street: '123 Main St',
+      city: 'Boston',
+      state: 'MA',
+      zipCode: '02108',
+      country: 'USA'
+    }
+  };
+  const mockInvoiceDoc = {
+    _id: { toString: () => 'INVOICEID' },
+    quoteId: mockQuote.id,
+    customerDetails: mockCustomer,
+    amount: mockQuote.estimatedPrice,
+    currency: 'USD',
+    status: 'pending',
+    dueDate: new Date('2025-07-01T00:00:00Z'),
+    createdAt: new Date('2025-06-01T00:00:00Z'),
+    updatedAt: new Date('2025-06-01T00:00:00Z'),
+    save: jest.fn().mockResolvedValue(undefined)
+  };
 
-jest.setTimeout(10000);
-
-beforeAll(async () => {
-  await mongoose.connect(config.DB_URI + '_test');
-  const db = mongoose.connection.db;
-  if (db) {
-    await db.dropCollection('invoices').catch(() => {});
-  }
-});
-
-afterAll(async () => {
-  await mongoose.disconnect();
-});
-
-describe('Invoicing API', () => {
-  let invoiceId: string;
-
-  it('creates an invoice from a valid quote and customer details', async () => {
-    const fakeQuote = {
-      _id: 'QUOTE123',
-      serviceType: 'HOME_CLEANING',
-      parameters: { area: 75, rooms: 3 },
-      total: 150
-    };
-    (pricingClient.getQuote as jest.Mock).mockResolvedValue(fakeQuote);
-
-    const customer = { name: 'Alice', email: 'alice@example.com' };
-    const res = await request(app)
-      .post('/api/invoices')
-      .send({ quoteId: fakeQuote._id, customerDetails: customer })
-      .expect(200);
-
-    expect(res.body).toHaveProperty('_id');
-    expect(res.body).toHaveProperty('quoteId', fakeQuote._id);
-    expect(res.body).toHaveProperty('customerDetails');
-    expect(res.body.customerDetails).toMatchObject(customer);
-    expect(res.body).toHaveProperty('serviceType', fakeQuote.serviceType);
-    invoiceId = res.body._id;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = new InvoiceService();
   });
 
-  it('retrieves an invoice by ID', async () => {
-    const res = await request(app)
-      .get('/api/invoices/' + invoiceId)
-      .expect(200);
+  it('creates an invoice from valid quote and customer details', async () => {
+    (pricingClient.getQuote as jest.Mock).mockResolvedValue(mockQuote);
+    (Invoice as any).mockImplementation(() => mockInvoiceDoc);
+    (mockInvoiceDoc.save as jest.Mock).mockResolvedValue(undefined);
+    (EmailService.prototype.sendInvoiceEmail as jest.Mock).mockResolvedValue(undefined);
 
-    expect(res.body).toHaveProperty('_id', invoiceId);
+    const result = await service.createInvoice(mockQuote.id, mockCustomer);
+    expect(pricingClient.getQuote).toHaveBeenCalledWith(mockQuote.id);
+    expect(mockInvoiceDoc.save).toHaveBeenCalled();
+    expect(EmailService.prototype.sendInvoiceEmail).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'INVOICEID',
+      customerDetails: mockCustomer
+    }));
+    expect(result).toMatchObject({
+      id: 'INVOICEID',
+      quoteId: mockQuote.id,
+      customerDetails: mockCustomer,
+      amount: mockQuote.estimatedPrice,
+      currency: 'USD',
+      status: 'pending',
+      dueDate: expect.any(String),
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String)
+    });
   });
 
-  it('lists all invoices', async () => {
-    const res = await request(app)
-      .get('/api/invoices')
-      .expect(200);
-
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBeGreaterThan(0);
+  it('throws if pricing service fails', async () => {
+    (pricingClient.getQuote as jest.Mock).mockRejectedValue(new Error('Pricing service unavailable'));
+    await expect(service.createInvoice('BAD', mockCustomer)).rejects.toThrow('Pricing service unavailable');
+    expect(EmailService.prototype.sendInvoiceEmail).not.toHaveBeenCalled();
   });
 
-  it('returns 500 on invalid create', async () => {
-    (pricingClient.getQuote as jest.Mock).mockRejectedValue(new Error('fail'));
-    const res = await request(app)
-      .post('/api/invoices')
-      .send({ quoteId: 'BAD', customerDetails: {} })
-      .expect(500);
+  it('does not throw if email service fails', async () => {
+    (pricingClient.getQuote as jest.Mock).mockResolvedValue(mockQuote);
+    (Invoice as any).mockImplementation(() => mockInvoiceDoc);
+    (mockInvoiceDoc.save as jest.Mock).mockResolvedValue(undefined);
+    (EmailService.prototype.sendInvoiceEmail as jest.Mock).mockRejectedValue(new Error('Email service unavailable'));
+    await expect(service.createInvoice(mockQuote.id, mockCustomer)).resolves.toBeDefined();
+    expect(EmailService.prototype.sendInvoiceEmail).toHaveBeenCalled();
+  });
 
-    expect(res.body).toHaveProperty('error');
+  it('getInvoiceById returns transformed invoice if found', async () => {
+    (Invoice.findById as jest.Mock).mockReturnValue({
+      lean: jest.fn().mockResolvedValue({
+        ...mockInvoiceDoc,
+        _id: { toString: () => 'INVOICEID' }
+      })
+    });
+    const result = await service.getInvoiceById('INVOICEID');
+    expect(result).toMatchObject({
+      id: 'INVOICEID',
+      quoteId: mockQuote.id,
+      customerDetails: mockCustomer
+    });
+  });
+
+  it('getInvoiceById returns null if not found', async () => {
+    (Invoice.findById as jest.Mock).mockReturnValue({
+      lean: jest.fn().mockResolvedValue(null)
+    });
+    const result = await service.getInvoiceById('NOTFOUND');
+    expect(result).toBeNull();
+  });
+
+  it('listInvoices returns transformed invoices', async () => {
+    (Invoice.find as jest.Mock).mockReturnValue({
+      lean: jest.fn().mockResolvedValue([
+        { ...mockInvoiceDoc, _id: { toString: () => 'INVOICEID1' } },
+        { ...mockInvoiceDoc, _id: { toString: () => 'INVOICEID2' } }
+      ])
+    });
+    const result = await service.listInvoices();
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ id: 'INVOICEID1' });
+    expect(result[1]).toMatchObject({ id: 'INVOICEID2' });
+  });
+
+  it('resendInvoiceEmail throws if invoice not found', async () => {
+    (Invoice.findById as jest.Mock).mockReturnValue({
+      lean: jest.fn().mockResolvedValue(null)
+    });
+    await expect(service.resendInvoiceEmail('NOTFOUND')).rejects.toThrow('Invoice not found');
+  });
+
+  it('resendInvoiceEmail sends email if invoice found', async () => {
+    (Invoice.findById as jest.Mock).mockReturnValue({
+      lean: jest.fn().mockResolvedValue(mockInvoiceDoc)
+    });
+    (EmailService.prototype.sendInvoiceEmail as jest.Mock).mockResolvedValue(undefined);
+    await service.resendInvoiceEmail('INVOICEID');
+    expect(EmailService.prototype.sendInvoiceEmail).toHaveBeenCalledWith(expect.objectContaining({
+      id: expect.any(String),
+      customerDetails: mockCustomer
+    }));
   });
 });

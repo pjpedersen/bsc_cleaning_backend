@@ -7,8 +7,6 @@ export class PricingController {
 
   calculateQuote = async (req: Request, res: Response) => {
     try {
-      console.log('Received request:', req.body); // Debug log
-      
       // Extract serviceType from the root level of the request
       const { serviceType, parameters, userId, customerType, name, email, phone, address, city, zip } = req.body;
       
@@ -50,7 +48,6 @@ export class PricingController {
         breakdown: priceDetails.breakdown
       });
     } catch (err: any) {
-      console.error('Error in calculateQuote:', err);
       res.status(500).json({ error: err.message || err.toString() });
     }
   };
