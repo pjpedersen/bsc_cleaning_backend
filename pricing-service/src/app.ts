@@ -22,9 +22,11 @@ app.use('/api/pricing', pricingRoutes);
 app.use('/api/calculators', calculatorRoutes);
 app.use('/api', quoteRequestRoutes); // Keep this as /api since it matches frontend expectations
 
-// Connect to MongoDB
-mongoose.connect(config.DB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((error: Error) => console.error('MongoDB connection error:', error));
+// Only connect to MongoDB if we're not in a test environment
+if (process.env.NODE_ENV !== 'test') {
+  mongoose.connect(config.DB_URI)
+    .then(() => console.log('Connected to MongoDB'))
+    .catch((error: Error) => console.error('MongoDB connection error:', error));
+}
 
 export default app;

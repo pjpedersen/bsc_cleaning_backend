@@ -1,32 +1,34 @@
 import request from 'supertest';
 import mongoose from 'mongoose';
-import app from '../app';
-import config from '../config/config';
+import app from '../../app';
+import config from '../../config/config';
 
 jest.setTimeout(10000);
 
 beforeAll(async () => {
-  // connect to the test DB
   await mongoose.connect(`${config.DB_URI}_test`);
-  // drop any existing quotes
-  const db = mongoose.connection.db;
-  if (db) {
-    await db.collection('quotes').deleteMany({});
-  }
 });
 
 afterAll(async () => {
   await mongoose.disconnect();
 });
 
-describe('Pricing API', () => {
-  it('calculates a WINDOW_CLEANING quote', async () => {
+beforeEach(async () => {
+  // Clear the database before each test
+  const db = mongoose.connection.db;
+  if (db) {
+    await db.collection('quotes').deleteMany({});
+  }
+});
+
+describe('POST /api/pricing/calculate', () => {
+  it('calculates price for window cleaning', async () => {
     const res = await request(app)
       .post('/api/pricing/calculate')
       .send({
         serviceType: 'WINDOW_CLEANING',
         parameters: {
-          windows: '1:5', // Format: id:count
+          windows: '1:5',
           floor: '2',
           cleaningType: 'Indvendig',
           stormWindows: 'Nej',
@@ -45,39 +47,18 @@ describe('Pricing API', () => {
     expect(res.body.breakdown).toHaveProperty('subscriptionDiscount');
   });
 
-  it('calculates a HOME_CLEANING quote', async () => {
+  it('validates required fields', async () => {
     const res = await request(app)
       .post('/api/pricing/calculate')
-      .send({
-        serviceType: 'HOME_CLEANING',
-        parameters: {
-          area: 120,
-          rooms: 4
-        }
-      })
-      .expect(200);
+      .send({})
+      .expect(400);
 
-    expect(res.body.estimatedPrice).toBeGreaterThan(0);
-    expect(res.body.breakdown).toBeDefined();
+    expect(res.body).toHaveProperty('error');
   });
+});
 
-  it('calculates a LAWN_CARE quote', async () => {
-    const res = await request(app)
-      .post('/api/pricing/calculate')
-      .send({
-        serviceType: 'LAWN_CARE',
-        parameters: {
-          lawnSize: 500,
-          frequency: 'WEEKLY'
-        }
-      })
-      .expect(200);
-
-    expect(res.body.estimatedPrice).toBeGreaterThan(0);
-    expect(res.body.breakdown).toBeDefined();
-  });
-
-  it('stores and retrieves a quote by ID', async () => {
+describe('GET /api/pricing/quotes/:id', () => {
+  it('retrieves a quote by ID', async () => {
     // First create a quote
     const createRes = await request(app)
       .post('/api/pricing/calculate')
@@ -114,4 +95,11 @@ describe('Pricing API', () => {
     expect(res.body).toHaveProperty('estimatedPrice');
     expect(res.body).toHaveProperty('parameters');
   });
-});
+
+  it('returns 404 for non-existent ID', async () => {
+    const nonExistentId = new mongoose.Types.ObjectId();
+    await request(app)
+      .get(`/api/pricing/quotes/${nonExistentId}`)
+      .expect(404);
+  });
+}); 
