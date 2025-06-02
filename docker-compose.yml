@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=example
+
+  pricing-service:
+    build: ./pricing-service
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://root:example@mongodb:27017/pricing?authSource=admin
+      - JWT_SECRET=your_jwt_secret
+    depends_on:
+      - mongodb
+
+  invoicing-service:
+    build: ./invoicing-service
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://root:example@mongodb:27017/invoicing?authSource=admin
+      - SENDGRID_API_KEY=your_sendgrid_api_key
+    depends_on:
+      - mongodb
+      - pricing-service
+
+  authentication-service:
+    build: ./authentication-service
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://root:example@mongodb:27017/auth?authSource=admin
+      - JWT_SECRET=your_jwt_secret
+    depends_on:
+      - mongodb
+
+volumes:
+  mongodb_data: 
